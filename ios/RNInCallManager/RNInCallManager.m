@@ -124,7 +124,8 @@ RCT_EXPORT_MODULE(InCallManager)
 - (NSArray<NSString *> *)supportedEvents
 {
     return @[@"Proximity",
-             @"WiredHeadset"];
+             @"WiredHeadset",
+             @"RouteChange"];
 }
 
 RCT_EXPORT_METHOD(start:(NSString *)mediaType
@@ -895,13 +896,16 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 
             NSNumber *routeChangeType = [notification.userInfo objectForKey:@"AVAudioSessionRouteChangeReasonKey"];
             NSUInteger routeChangeTypeValue = [routeChangeType unsignedIntegerValue];
+            NSString *reason = @"";
 
             switch (routeChangeTypeValue) {
                 case AVAudioSessionRouteChangeReasonUnknown:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknown");
+                    reason = @"Unknown";
                     break;
                 case AVAudioSessionRouteChangeReasonNewDeviceAvailable:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: NewDeviceAvailable");
+                    reason = @"NewDeviceAvailable";
                     if ([self checkAudioRoute:@[AVAudioSessionPortHeadsetMic]
                                     routeType:@"input"]) {
                         [self sendEventWithName:@"WiredHeadset"
@@ -922,6 +926,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                     break;
                 case AVAudioSessionRouteChangeReasonOldDeviceUnavailable:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: OldDeviceUnavailable");
+                    reason = @"OldDeviceUnavailable";
                     if (![self isWiredHeadsetPluggedIn]) {
                         [self sendEventWithName:@"WiredHeadset"
                                            body:@{
@@ -933,24 +938,50 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                     break;
                 case AVAudioSessionRouteChangeReasonCategoryChange:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: CategoryChange. category=%@ mode=%@", self->_audioSession.category, self->_audioSession.mode);
+                    reason = @"CategoryChange";
                     [self updateAudioRoute];
                     break;
                 case AVAudioSessionRouteChangeReasonOverride:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: Override");
+                    reason = @"Override";
                     break;
                 case AVAudioSessionRouteChangeReasonWakeFromSleep:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: WakeFromSleep");
+                    reason = @"WakeFromSleep";
                     break;
                 case AVAudioSessionRouteChangeReasonNoSuitableRouteForCategory:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: NoSuitableRouteForCategory");
+                    reason = @"NoSuitableRouteForCategory";
                     break;
                 case AVAudioSessionRouteChangeReasonRouteConfigurationChange:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: RouteConfigurationChange. category=%@ mode=%@", self->_audioSession.category, self->_audioSession.mode);
+                    reason = @"ConfigurationChange";
                     break;
                 default:
                     NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknow Value");
                     break;
             }
+
+            NSString *portName = @"";
+            NSString *portType = @"";
+            if (self->_audioSession.currentRoute.outputs.count > 0) {
+                portName = self->_audioSession.currentRoute.outputs[0].portName;
+                portType = self->_audioSession.currentRoute.outputs[0].portType;
+
+                BOOL shouldEnableProximity = [self->_audioSession.currentRoute.outputs[0].portType isEqualToString: AVAudioSessionPortBuiltInReceiver];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self->_currentDevice.proximityMonitoringEnabled = shouldEnableProximity;
+                });
+            }
+
+            [self sendEventWithName:@"RouteChange"
+                               body:@{
+                                   @"category": self->_audioSession.category,
+                                   @"mode": self->_audioSession.mode,
+                                   @"reason": reason,
+                                   @"portName": portName,
+                                   @"portType": portType
+                               }];
 
             NSNumber *silenceSecondaryAudioHintType = [notification.userInfo objectForKey:@"AVAudioSessionSilenceSecondaryAudioHintTypeKey"];
             NSUInteger silenceSecondaryAudioHintTypeValue = [silenceSecondaryAudioHintType unsignedIntegerValue];

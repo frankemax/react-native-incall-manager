@@ -381,6 +381,19 @@ public class AppRTCBluetoothManager {
     Log.d(TAG, "updateDevice done: BT state=" + bluetoothState);
   }
 
+  // Returns name of last connected bluetooth device or empty string.
+  public String getBluetoothDeviceName() {
+    List<BluetoothDevice> devices = bluetoothHeadset.getConnectedDevices();
+    if (devices.isEmpty()) {
+      return "";
+    }
+
+    // Always use first device in list.
+    BluetoothDevice bluetoothDevice = devices.get(0);
+    String name = bluetoothDevice.getName();
+    return name != null && name.trim().length() > 0 ? name : "";
+  }
+
   /**
    * Stubs for test mocks.
    */

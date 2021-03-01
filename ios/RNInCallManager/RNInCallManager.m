@@ -125,7 +125,7 @@ RCT_EXPORT_MODULE(InCallManager)
 {
     return @[@"Proximity",
              @"WiredHeadset",
-             @"RouteChange"];
+             @"onAudioDeviceChanged"];
 }
 
 RCT_EXPORT_METHOD(start:(NSString *)mediaType
@@ -974,7 +974,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                 });
             }
 
-            [self sendEventWithName:@"RouteChange"
+            [self sendEventWithName:@"onAudioDeviceChanged"
                                body:@{
                                    @"category": self->_audioSession.category,
                                    @"mode": self->_audioSession.mode,

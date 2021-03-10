@@ -411,7 +411,8 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     }
 
     public void onProximitySensorChangedState(boolean isNear) {
-        if (getReactApplicationContext().getCurrentActivity().hasWindowFocus() && automatic && getSelectedAudioDevice() == AudioDevice.EARPIECE) {
+        Activity currentActivity = getReactApplicationContext().getCurrentActivity();
+        if ((currentActivity != null && currentActivity.hasWindowFocus()) && automatic && getSelectedAudioDevice() == AudioDevice.EARPIECE) {
             if (isNear) {
                 turnScreenOff();
             } else {

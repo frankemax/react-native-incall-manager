@@ -171,6 +171,8 @@ RCT_EXPORT_METHOD(start:(NSString *)mediaType
     [self setKeepScreenOn:YES];
     _audioSessionInitialized = YES;
     //self.debugAudioSession()
+
+    [self _emitAudioDeviceChanged:@"initial"];
 }
 
 RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
@@ -962,26 +964,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                     break;
             }
 
-            NSString *portName = @"";
-            NSString *portType = @"";
-            if (self->_audioSession.currentRoute.outputs.count > 0) {
-                portName = self->_audioSession.currentRoute.outputs[0].portName;
-                portType = self->_audioSession.currentRoute.outputs[0].portType;
-
-                BOOL shouldEnableProximity = [self->_audioSession.currentRoute.outputs[0].portType isEqualToString: AVAudioSessionPortBuiltInReceiver];
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    self->_currentDevice.proximityMonitoringEnabled = shouldEnableProximity;
-                });
-            }
-
-            [self sendEventWithName:@"onAudioDeviceChanged"
-                               body:@{
-                                   @"category": self->_audioSession.category,
-                                   @"mode": self->_audioSession.mode,
-                                   @"reason": reason,
-                                   @"portName": portName,
-                                   @"portType": portType
-                               }];
+            [self _emitAudioDeviceChanged:reason];
 
             NSNumber *silenceSecondaryAudioHintType = [notification.userInfo objectForKey:@"AVAudioSessionSilenceSecondaryAudioHintTypeKey"];
             NSUInteger silenceSecondaryAudioHintTypeValue = [silenceSecondaryAudioHintType unsignedIntegerValue];
@@ -1303,6 +1286,32 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     NSLog(@"RNInCallManager.getSysFileUri(): can not get url for %@", target);
     return nil;
 }
+
+- (void)_emitAudioDeviceChanged:(NSString *)reason {
+    NSString *portName = @"";
+    NSString *portType = @"";
+    if (self->_audioSession.currentRoute.outputs.count > 0) {
+        portName = self->_audioSession.currentRoute.outputs[0].portName;
+        portType = self->_audioSession.currentRoute.outputs[0].portType;
+
+        BOOL shouldEnableProximity = [
+            self->_audioSession.currentRoute.outputs[0].portType
+                isEqualToString: AVAudioSessionPortBuiltInReceiver];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->_currentDevice.proximityMonitoringEnabled = shouldEnableProximity;
+        });
+    }
+
+    [self sendEventWithName:@"onAudioDeviceChanged"
+        body:@{
+            @"category": self->_audioSession.category,
+            @"mode": self->_audioSession.mode,
+            @"reason": reason,
+            @"portName": portName,
+            @"portType": portType
+        }];
+}
+
 
 #pragma mark - AVAudioPlayerDelegate
 

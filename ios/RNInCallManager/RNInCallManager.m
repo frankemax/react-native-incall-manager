@@ -443,12 +443,8 @@ RCT_EXPORT_METHOD(stopRingtone)
 RCT_EXPORT_METHOD(checkRecordPermission:(RCTPromiseResolveBlock)resolve
                                  reject:(RCTPromiseRejectBlock)reject)
 {
-    [self _checkRecordPermission];
-    if (_recordPermission != nil) {
-        resolve(_recordPermission);
-    } else {
-        reject(@"error_code", @"error message", RCTErrorWithMessage(@"checkRecordPermission is nil"));
-    }
+    NSString *sessionDescription = [self debugAudioSession];
+    resolve(sessionDescription);
 }
 
 RCT_EXPORT_METHOD(requestRecordPermission:(RCTPromiseResolveBlock)resolve
@@ -1346,76 +1342,54 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 //{
 //}
 
-//- (void)debugAudioSession
-//{
-//    let currentRoute: Dictionary <String,String> = ["input": self.audioSession.currentRoute.inputs[0].uid, "output": self.audioSession.currentRoute.outputs[0].uid]
-//    var categoryOptions = ""
-//    switch self.audioSession.categoryOptions {
-//        case AVAudioSessionCategoryOptions.mixWithOthers:
-//            categoryOptions = "MixWithOthers"
-//        case AVAudioSessionCategoryOptions.duckOthers:
-//            categoryOptions = "DuckOthers"
-//        case AVAudioSessionCategoryOptions.allowBluetooth:
-//            categoryOptions = "AllowBluetooth"
-//        case AVAudioSessionCategoryOptions.defaultToSpeaker:
-//            categoryOptions = "DefaultToSpeaker"
-//        default:
-//            categoryOptions = "unknow"
-//    }
-//    if #available(iOS 9, *) {
-//        if categoryOptions == "unknow" && self.audioSession.categoryOptions == AVAudioSessionCategoryOptions.interruptSpokenAudioAndMixWithOthers {
-//            categoryOptions = "InterruptSpokenAudioAndMixWithOthers"
-//        }
-//    }
-//    self._checkRecordPermission()
-//    let audioSessionProperties: Dictionary <String,Any> = [
-//        "category": self.audioSession.category,
-//        "categoryOptions": categoryOptions,
-//        "mode": self.audioSession.mode,
-//        //"inputAvailable": self.audioSession.inputAvailable,
-//        "otherAudioPlaying": self.audioSession.isOtherAudioPlaying,
-//        "recordPermission" : self.recordPermission,
-//        //"availableInputs": self.audioSession.availableInputs,
-//        //"preferredInput": self.audioSession.preferredInput,
-//        //"inputDataSources": self.audioSession.inputDataSources,
-//        //"inputDataSource": self.audioSession.inputDataSource,
-//        //"outputDataSources": self.audioSession.outputDataSources,
-//        //"outputDataSource": self.audioSession.outputDataSource,
-//        "currentRoute": currentRoute,
-//        "outputVolume": self.audioSession.outputVolume,
-//        "inputGain": self.audioSession.inputGain,
-//        "inputGainSettable": self.audioSession.isInputGainSettable,
-//        "inputLatency": self.audioSession.inputLatency,
-//        "outputLatency": self.audioSession.outputLatency,
-//        "sampleRate": self.audioSession.sampleRate,
-//        "preferredSampleRate": self.audioSession.preferredSampleRate,
-//        "IOBufferDuration": self.audioSession.ioBufferDuration,
-//        "preferredIOBufferDuration": self.audioSession.preferredIOBufferDuration,
-//        "inputNumberOfChannels": self.audioSession.inputNumberOfChannels,
-//        "maximumInputNumberOfChannels": self.audioSession.maximumInputNumberOfChannels,
-//        "preferredInputNumberOfChannels": self.audioSession.preferredInputNumberOfChannels,
-//        "outputNumberOfChannels": self.audioSession.outputNumberOfChannels,
-//        "maximumOutputNumberOfChannels": self.audioSession.maximumOutputNumberOfChannels,
-//        "preferredOutputNumberOfChannels": self.audioSession.preferredOutputNumberOfChannels
-//    ]
-//    /*
-//    // --- Too noisy
-//    if #available(iOS 8, *) {
-//        //audioSessionProperties["secondaryAudioShouldBeSilencedHint"] = self.audioSession.secondaryAudioShouldBeSilencedHint
-//    } else {
-//        //audioSessionProperties["secondaryAudioShouldBeSilencedHint"] = "unknow"
-//    }
-//    if #available(iOS 9, *) {
-//        //audioSessionProperties["availableCategories"] = self.audioSession.availableCategories
-//        //audioSessionProperties["availableModes"] = self.audioSession.availableModes
-//    }
-//    */
-//    NSLog("RNInCallManager.debugAudioSession(): ==========BEGIN==========")
-//    // iterate over all keys
-//    for (key, value) in audioSessionProperties {
-//        NSLog("\(key) = \(value)")
-//    }
-//    NSLog("RNInCallManager.debugAudioSession(): ==========END==========")
-//}
+- (NSString*)debugAudioSession
+{
+  NSDictionary *currentRoute = @{
+    @"input": _audioSession.currentRoute.inputs[0].UID,
+    @"output": _audioSession.currentRoute.outputs[0].UID
+  };
+    NSString *categoryOptions = @"";
+    switch (_audioSession.categoryOptions) {
+        case AVAudioSessionCategoryOptionMixWithOthers:
+            categoryOptions = @"MixWithOthers";
+        case AVAudioSessionCategoryOptionDuckOthers:
+            categoryOptions = @"DuckOthers";
+        case AVAudioSessionCategoryOptionAllowBluetooth:
+            categoryOptions = @"AllowBluetooth";
+        case AVAudioSessionCategoryOptionDefaultToSpeaker:
+            categoryOptions = @"DefaultToSpeaker";
+        default:
+            categoryOptions = @"unknow";
+    }
+
+  [self _checkRecordPermission];
+  NSDictionary *audioSessionProperties = @{
+    @"category": _audioSession.category,
+    @"categoryOptions": categoryOptions,
+    @"mode": _audioSession.mode,
+    @"inputAvailable": _audioSession.inputAvailable ? @"YES" : @"NO",
+    @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
+    @"recordPermission" : _recordPermission,
+    @"availableInputs": _audioSession.availableInputs,
+    @"currentRoute": currentRoute,
+    @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
+    @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],
+    @"inputGainSettable": _audioSession.isInputGainSettable ? @"YES" : @"NO",
+    @"inputLatency": [NSNumber numberWithFloat: _audioSession.inputLatency],
+    @"outputLatency": [NSNumber numberWithDouble: _audioSession.outputLatency],
+    @"sampleRate": [NSNumber numberWithDouble: _audioSession.sampleRate],
+    @"preferredSampleRate": [NSNumber numberWithDouble: _audioSession.preferredSampleRate],
+    @"IOBufferDuration": [NSNumber numberWithDouble: _audioSession.IOBufferDuration],
+    @"preferredIOBufferDuration": [NSNumber numberWithDouble: _audioSession.preferredIOBufferDuration],
+    @"inputNumberOfChannels": [NSNumber numberWithLong: _audioSession.inputNumberOfChannels],
+    @"maximumInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumInputNumberOfChannels],
+    @"preferredInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredInputNumberOfChannels],
+    @"outputNumberOfChannels": [NSNumber numberWithLong: _audioSession.outputNumberOfChannels],
+    @"maximumOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumOutputNumberOfChannels],
+    @"preferredOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredOutputNumberOfChannels]
+  };
+
+  return [NSString stringWithFormat:@"%@", audioSessionProperties];
+}
 
 @end

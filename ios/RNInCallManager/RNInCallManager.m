@@ -1344,10 +1344,10 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 
 - (NSString*)debugAudioSession
 {
-  NSDictionary *currentRoute = @{
-    @"input": _audioSession.currentRoute.inputs[0].UID,
-    @"output": _audioSession.currentRoute.outputs[0].UID
-  };
+//   NSDictionary *currentRoute = @{
+//     @"input": _audioSession.currentRoute.inputs[0].UID,
+//     @"output": _audioSession.currentRoute.outputs[0].UID
+//   };
     NSString *categoryOptions = @"";
     switch (_audioSession.categoryOptions) {
         case AVAudioSessionCategoryOptionMixWithOthers:
@@ -1371,7 +1371,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 //    @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
     @"recordPermission" : _recordPermission,
 //    @"availableInputs": _audioSession.availableInputs,
-    @"currentRoute": currentRoute,
+//    @"currentRoute": currentRoute,
 //    @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
 //    @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],
 //    @"inputGainSettable": _audioSession.isInputGainSettable ? @"YES" : @"NO",

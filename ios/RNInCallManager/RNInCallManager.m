@@ -171,10 +171,6 @@ RCT_EXPORT_METHOD(start:(NSString *)mediaType
     }
     [self setKeepScreenOn:YES];
     _audioSessionInitialized = YES;
-    //self.debugAudioSession()
-
-    [self _emitLog:[NSString stringWithFormat:@"Emitting initial audio device changed"]];
-    [self _emitAudioDeviceChanged:@"initial"];
 }
 
 RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)

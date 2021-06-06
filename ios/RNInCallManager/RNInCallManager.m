@@ -440,8 +440,12 @@ RCT_EXPORT_METHOD(stopRingtone)
 RCT_EXPORT_METHOD(checkRecordPermission:(RCTPromiseResolveBlock)resolve
                                  reject:(RCTPromiseRejectBlock)reject)
 {
-    NSString *sessionDescription = [self debugAudioSession];
-    resolve(sessionDescription);
+    [self _checkRecordPermission];
+    if (_recordPermission != nil) {
+        resolve(_recordPermission);
+    } else {
+        reject(@"error_code", @"error message", RCTErrorWithMessage(@"checkRecordPermission is nil"));
+    }
 }
 
 RCT_EXPORT_METHOD(requestRecordPermission:(RCTPromiseResolveBlock)resolve

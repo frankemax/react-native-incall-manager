@@ -203,20 +203,12 @@ RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
 
 RCT_EXPORT_METHOD(turnScreenOn)
 {
-    [self _emitLog:[NSString stringWithFormat:@"RNInCallManager.turnScreenOn(): SETTING CATEGORY AND MODE"]];
-    [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord
-                          options:0
-                       callerMemo:NSStringFromSelector(_cmd)];
-    [self audioSessionSetMode:AVAudioSessionModeVoiceChat
-                   callerMemo:NSStringFromSelector(_cmd)];
+    [self _emitLog:[NSString stringWithFormat:@"RNInCallManager.turnScreenOn(): ios doesn't support turnScreenOn()"]];
 }
 
 RCT_EXPORT_METHOD(turnScreenOff)
 {
-    [self _emitLog:[NSString stringWithFormat:@"RNInCallManager.turnScreenOff(): ACTIVATING AUDIOSESSION"]];
-    [self audioSessionSetActive:YES
-                        options:0
-                     callerMemo:NSStringFromSelector(_cmd)];
+    [self _emitLog:[NSString stringWithFormat:@"RNInCallManager.turnScreenOff(): ios doesn't support turnScreenOff()"]];
 }
 
 RCT_EXPORT_METHOD(setFlashOn:(BOOL)enable

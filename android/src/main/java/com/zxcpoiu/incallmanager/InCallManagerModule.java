@@ -1451,7 +1451,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
 
     @ReactMethod
     public void checkAndroidBluetoothPermission(Promise promise) {
-        Log.d(TAG, "RNInCallManager.checkCameraPermission(): enter");
+        Log.d(TAG, "RNInCallManager.checkAndroidBluetoothPermission(): enter");
         _checkAndroidBluetoothPermission();
         if (androidBluetoothPermission.equals("unknow")) {
             Log.d(TAG, "RNInCallManager.checkAndroidBluetoothPermission(): failed");

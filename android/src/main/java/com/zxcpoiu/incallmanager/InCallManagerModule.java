@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.BroadcastReceiver;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.Manifest.permission;
 //import android.media.AudioAttributes; // --- for API 21+
@@ -115,6 +116,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     private String wiredHeadsetDeviceName = "";
     private static String recordPermission = "unknow";
     private static String cameraPermission = "unknow";
+    private static String androidBluetoothPermission = "unknow";
 
     private static final String SPEAKERPHONE_AUTO = "auto";
     private static final String SPEAKERPHONE_TRUE = "true";
@@ -172,6 +174,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     // Callback method for changes in audio focus.
     private AudioManager.OnAudioFocusChangeListener audioFocusChangeListener;
 
+    // We need context for SharedPrefs. 
+    private ReactApplicationContext reactContext;
+
     interface MyPlayerInterface {
         public boolean isPlaying();
         public void startPlay(Map<String, Object> data);
@@ -185,6 +190,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
 
     public InCallManagerModule(ReactApplicationContext reactContext) {
         super(reactContext);
+        this.reactContext = reactContext;
         mPackageName = reactContext.getPackageName();
         reactContext.addLifecycleEventListener(this);
         mWindowManager = (WindowManager) reactContext.getSystemService(Context.WINDOW_SERVICE);
@@ -200,11 +206,14 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         mRequestPermissionCodePromises = new SparseArray<Promise>();
         mRequestPermissionCodeTargetPermission = new SparseArray<String>();
         mOnFocusChangeListener = new OnFocusChangeListener();
-        bluetoothManager = AppRTCBluetoothManager.create(reactContext, this);
         proximityManager = InCallProximityManager.create(reactContext, this);
         wakeLockUtils = new InCallWakeLockUtils(reactContext);
 
         Log.d(TAG, "InCallManager initialized");
+    }
+
+    private boolean isAndroidBluetoothPermissionGranted() {
+        return androidBluetoothPermission.equals("granted");
     }
 
     private void manualTurnScreenOff() {
@@ -555,6 +564,18 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         }
     }
 
+    private void setBluetoothPermissionGrantedOrDeniedByUser() {
+        SharedPreferences sharedPref = reactContext.getSharedPreferences("setBluetoothPermissionGrantedOrDeniedByUser", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putBoolean("setBluetoothPermissionGrantedOrDeniedByUser", true);
+        editor.commit();
+    }
+
+    private boolean isBluetoothPermissionGrantedOrDeniedByUser() {
+        SharedPreferences sharedPref = reactContext.getSharedPreferences("setBluetoothPermissionGrantedOrDeniedByUser", Context.MODE_PRIVATE);
+        return sharedPref.getBoolean("setBluetoothPermissionGrantedOrDeniedByUser", false);
+    }
+
     @ReactMethod
     public void start(final String _media, final boolean auto, final String ringbackUriType) {
         media = _media;
@@ -576,7 +597,12 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             storeOriginalAudioSetup();
             requestAudioFocus();
             startEvents();
-            bluetoothManager.start();
+
+            if (isAndroidBluetoothPermissionGranted()) {
+                bluetoothManager = AppRTCBluetoothManager.create(reactContext, this);
+                bluetoothManager.start();
+            }
+
             // TODO: even if not acquired focus, we can still play sounds. but need figure out which is better.
             //getCurrentActivity().setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
             audioManager.setMode(defaultAudioMode);
@@ -615,7 +641,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 setSpeakerphoneOn(false);
                 setMicrophoneMute(false);
                 forceSpeakerOn = 0;
-                bluetoothManager.stop();
+                if (isAndroidBluetoothPermissionGranted()) {
+                    bluetoothManager.stop();
+                }
                 restoreOriginalAudioSetup();
                 releaseAudioFocus();
                 audioManagerActivated = false;
@@ -1421,6 +1449,18 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         }
     }
 
+    @ReactMethod
+    public void checkAndroidBluetoothPermission(Promise promise) {
+        Log.d(TAG, "RNInCallManager.checkCameraPermission(): enter");
+        _checkAndroidBluetoothPermission();
+        if (androidBluetoothPermission.equals("unknow")) {
+            Log.d(TAG, "RNInCallManager.checkAndroidBluetoothPermission(): failed");
+            promise.reject(new Exception("checkAndroidBluetoothPermission failed"));
+        } else {
+            promise.resolve(androidBluetoothPermission);
+        }
+    }
+
     private void _checkRecordPermission() {
         recordPermission = _checkPermission(permission.RECORD_AUDIO);
         Log.d(TAG, String.format("RNInCallManager.checkRecordPermission(): recordPermission=%s", recordPermission));
@@ -1429,6 +1469,11 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     private void _checkCameraPermission() {
         cameraPermission = _checkPermission(permission.CAMERA);
         Log.d(TAG, String.format("RNInCallManager.checkCameraPermission(): cameraPermission=%s", cameraPermission));
+    }
+
+    private void _checkAndroidBluetoothPermission() {
+        androidBluetoothPermission = _checkPermission(android.os.Build.VERSION.SDK_INT < 30 ?  permission.BLUETOOTH : "android.permission.BLUETOOTH_CONNECT");
+        Log.d(TAG, String.format("RNInCallManager.checkAndroidBluetoothPermission(): androidBluetoothPermission=%s", androidBluetoothPermission));
     }
 
     private String _checkPermission(String targetPermission) {
@@ -1466,6 +1511,19 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         } else {
             // --- already granted
             promise.resolve(cameraPermission);
+        }
+    }
+
+    @ReactMethod
+    public void requestAndroidBluetoothPermission(Promise promise) {
+        Log.d(TAG, "RNInCallManager.requestAndroidBluetoothPermission(): enter");
+        _checkAndroidBluetoothPermission();
+        if (!isBluetoothPermissionGrantedOrDeniedByUser()) {
+            _requestPermission(android.os.Build.VERSION.SDK_INT < 30 ?  permission.BLUETOOTH : "android.permission.BLUETOOTH_CONNECT", promise);
+            setBluetoothPermissionGrantedOrDeniedByUser();
+        } else {
+            // --- already granted or denied
+            promise.resolve(androidBluetoothPermission);
         }
     }
 
@@ -1551,6 +1609,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 recordPermission = _requestPermissionResult;
             } else if (targetPermission.equals(permission.CAMERA)) {
                 cameraPermission = _requestPermissionResult;
+            } else if (targetPermission.equals((android.os.Build.VERSION.SDK_INT < 30 ?  permission.BLUETOOTH : "android.permission.BLUETOOTH_CONNECT"))) {
+                androidBluetoothPermission = _requestPermissionResult;
+
             }
             promise.resolve(_requestPermissionResult);
         } else {
@@ -1758,7 +1819,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     public void updateAudioDeviceState() {
         Log.d(TAG, "--- updateAudioDeviceState: "
                 + "wired headset=" + hasWiredHeadset + ", "
-                + "BT state=" + bluetoothManager.getState());
+                + "BT state=" + (isAndroidBluetoothPermissionGranted() ? bluetoothManager.getState() : "disabled"));
         Log.d(TAG, "Device status: "
                 + "available=" + audioDevices + ", "
                 + "selected=" + selectedAudioDevice + ", "
@@ -1767,9 +1828,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         // Check if any Bluetooth headset is connected. The internal BT state will
         // change accordingly.
         // TODO(henrika): perhaps wrap required state into BT manager.
-        if (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
+        if (isAndroidBluetoothPermissionGranted() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_UNAVAILABLE
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_DISCONNECTING) {
+                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_DISCONNECTING)) {
             bluetoothManager.updateDevice();
         }
 
@@ -1779,9 +1840,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         // always assume device has speaker phone
         newAudioDevices.add(AudioDevice.SPEAKER_PHONE);
 
-        if (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
+        if (isAndroidBluetoothPermissionGranted() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE) {
+                || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
             newAudioDevices.add(AudioDevice.BLUETOOTH);
         }
 
@@ -1808,19 +1869,19 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         AudioDevice newAudioDevice = getPreferredAudioDevice();
 
         // --- stop bluetooth if needed
-        if (selectedAudioDevice == AudioDevice.BLUETOOTH
+        if (isAndroidBluetoothPermissionGranted() && (selectedAudioDevice == AudioDevice.BLUETOOTH
                 && newAudioDevice != AudioDevice.BLUETOOTH
                 && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING)
+                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING))
         ) {
             bluetoothManager.stopScoAudio();
             bluetoothManager.updateDevice();
         }
 
         // --- start bluetooth if needed
-        if (selectedAudioDevice != AudioDevice.BLUETOOTH
+        if (isAndroidBluetoothPermissionGranted() && (selectedAudioDevice != AudioDevice.BLUETOOTH
                 && newAudioDevice == AudioDevice.BLUETOOTH
-                && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE) {
+                && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
             // Attempt to start Bluetooth SCO audio (takes a few second to start).
             if (!bluetoothManager.startScoAudio()) {
                 // Remove BLUETOOTH from list of available devices since SCO failed.
@@ -1833,8 +1894,8 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             }
         }
 
-        if (newAudioDevice == AudioDevice.BLUETOOTH
-                && bluetoothManager.getState() != AppRTCBluetoothManager.State.SCO_CONNECTED) {
+        if (isAndroidBluetoothPermissionGranted() && (newAudioDevice == AudioDevice.BLUETOOTH
+                && bluetoothManager.getState() != AppRTCBluetoothManager.State.SCO_CONNECTED)) {
             newAudioDevice = getPreferredAudioDevice(true); // --- skip bluetooth
         }
 
@@ -1877,7 +1938,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             data.putString("wiredHeadsetDeviceName", wiredHeadsetDeviceName);
         }
 
-        if (audioDevices.contains(AudioDevice.BLUETOOTH)) {
+        if (isAndroidBluetoothPermissionGranted() && audioDevices.contains(AudioDevice.BLUETOOTH)) {
             data.putString("bluetoothDeviceName", bluetoothManager.getBluetoothDeviceName());
         }
 

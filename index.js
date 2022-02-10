@@ -10,6 +10,7 @@ class InCallManager {
         this.vibrate = false;
         this.recordPermission = 'unknow';
         this.cameraPermission = 'unknow';
+        this.androidBluetoothPermission = 'unknow';
         this.audioUriMap = {
             ringtone: { _BUNDLE_: null, _DEFAULT_: null},
             ringback: { _BUNDLE_: null, _DEFAULT_: null},
@@ -19,15 +20,31 @@ class InCallManager {
         this.requestRecordPermission = this.requestRecordPermission.bind(this);
         this.checkCameraPermission = this.checkCameraPermission.bind(this);
         this.requestCameraPermission = this.requestCameraPermission.bind(this);
+        if (Platform.OS === 'android') {
+            this.androidBluetoothPermission = this.checkAndroidBluetoothPermission.bind(this);
+            this.androidBluetoothPermission = this.requestAndroidBluetoothPermission.bind(this);
+        }
         this.checkRecordPermission();
         this.checkCameraPermission();
+        if (Platform.OS === 'android') {
+            this.checkAndroidBluetoothPermission();
+        }
     }
 
-    start(setup) {
+    async start(setup) {
         setup = (setup === undefined) ? {} : setup;
         let auto = (setup.auto === false) ? false : true;
         let media = (setup.media === 'video') ? 'video' : 'audio';
         let ringback = (!!setup.ringback) ? (typeof setup.ringback === 'string') ? setup.ringback : "" : "";
+        if (Platform.OS === 'android') {
+            try {
+                await this.requestAndroidBluetoothPermission();
+            } catch(error) {
+                console.error(`InCallManager start() failed, error: ${error}`);
+            }
+            
+        }
+
         _InCallManager.start(media, auto, ringback);
     }
 
@@ -145,6 +162,26 @@ class InCallManager {
         // --- on android which api < 23, it will always be "granted"
         let result = await _InCallManager.requestCameraPermission();
         this.cameraPermission = result;
+        return result;
+    }
+
+    async checkAndroidBluetoothPermission() {
+        if (Platform.OS !== 'android') {
+            return;
+        }
+        // --- on android which api < 30, it will always be "granted"
+        let result = await _InCallManager.checkAndroidBluetoothPermission();
+        this.androidBluetoothConnectPermission = result;
+        return result;
+    }
+
+    async requestAndroidBluetoothPermission() {
+        if (Platform.OS !== 'android') {
+            return;
+        }
+        // --- on android which api < 30, it will always be "granted"
+        let result = await _InCallManager.requestAndroidBluetoothPermission();
+        this.androidBluetoothConnectPermission = result;
         return result;
     }
 

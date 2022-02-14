@@ -161,7 +161,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     private final String useSpeakerphone = SPEAKERPHONE_AUTO;
 
     // Handles all tasks related to Bluetooth headset devices.
-    private final AppRTCBluetoothManager bluetoothManager;
+    private AppRTCBluetoothManager bluetoothManager;
 
     private final InCallProximityManager proximityManager;
 

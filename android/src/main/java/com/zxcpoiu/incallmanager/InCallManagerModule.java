@@ -216,6 +216,10 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         return androidBluetoothPermission.equals("granted");
     }
 
+    private boolean isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() {
+        return isAndroidBluetoothPermissionGranted() && bluetoothManager != null;
+    }
+
     private void manualTurnScreenOff() {
         Log.d(TAG, "manualTurnScreenOff()");
         UiThreadUtil.runOnUiThread(new Runnable() {
@@ -641,7 +645,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 setSpeakerphoneOn(false);
                 setMicrophoneMute(false);
                 forceSpeakerOn = 0;
-                if (isAndroidBluetoothPermissionGranted()) {
+                if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
                     bluetoothManager.stop();
                 }
                 restoreOriginalAudioSetup();
@@ -1819,7 +1823,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     public void updateAudioDeviceState() {
         Log.d(TAG, "--- updateAudioDeviceState: "
                 + "wired headset=" + hasWiredHeadset + ", "
-                + "BT state=" + (isAndroidBluetoothPermissionGranted() ? bluetoothManager.getState() : "disabled"));
+                + "BT state=" + (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() ? bluetoothManager.getState() : "disabled"));
         Log.d(TAG, "Device status: "
                 + "available=" + audioDevices + ", "
                 + "selected=" + selectedAudioDevice + ", "
@@ -1828,7 +1832,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         // Check if any Bluetooth headset is connected. The internal BT state will
         // change accordingly.
         // TODO(henrika): perhaps wrap required state into BT manager.
-        if (isAndroidBluetoothPermissionGranted() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_UNAVAILABLE
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_DISCONNECTING)) {
             bluetoothManager.updateDevice();
@@ -1840,7 +1844,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         // always assume device has speaker phone
         newAudioDevices.add(AudioDevice.SPEAKER_PHONE);
 
-        if (isAndroidBluetoothPermissionGranted() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
             newAudioDevices.add(AudioDevice.BLUETOOTH);
@@ -1869,7 +1873,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         AudioDevice newAudioDevice = getPreferredAudioDevice();
 
         // --- stop bluetooth if needed
-        if (isAndroidBluetoothPermissionGranted() && (selectedAudioDevice == AudioDevice.BLUETOOTH
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (selectedAudioDevice == AudioDevice.BLUETOOTH
                 && newAudioDevice != AudioDevice.BLUETOOTH
                 && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
                 || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING))
@@ -1879,7 +1883,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         }
 
         // --- start bluetooth if needed
-        if (isAndroidBluetoothPermissionGranted() && (selectedAudioDevice != AudioDevice.BLUETOOTH
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (selectedAudioDevice != AudioDevice.BLUETOOTH
                 && newAudioDevice == AudioDevice.BLUETOOTH
                 && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
             // Attempt to start Bluetooth SCO audio (takes a few second to start).
@@ -1894,7 +1898,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             }
         }
 
-        if (isAndroidBluetoothPermissionGranted() && (newAudioDevice == AudioDevice.BLUETOOTH
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (newAudioDevice == AudioDevice.BLUETOOTH
                 && bluetoothManager.getState() != AppRTCBluetoothManager.State.SCO_CONNECTED)) {
             newAudioDevice = getPreferredAudioDevice(true); // --- skip bluetooth
         }
@@ -1938,7 +1942,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             data.putString("wiredHeadsetDeviceName", wiredHeadsetDeviceName);
         }
 
-        if (isAndroidBluetoothPermissionGranted() && audioDevices.contains(AudioDevice.BLUETOOTH)) {
+        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && audioDevices.contains(AudioDevice.BLUETOOTH)) {
             data.putString("bluetoothDeviceName", bluetoothManager.getBluetoothDeviceName());
         }
 

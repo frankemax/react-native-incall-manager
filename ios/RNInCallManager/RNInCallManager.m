@@ -140,7 +140,6 @@ RCT_EXPORT_METHOD(start:(NSString *)mediaType
     }
     NSLog(@"RNInCallManager.start() start InCallManager. media=%@, type=%@, mode=%@", _media, _media, _incallAudioMode);
     [self storeOriginalAudioSetup];
-    _forceSpeakerOn = 0;
     [self startAudioSessionNotification];
     [self audioSessionSetCategory:_incallAudioCategory
                           options:0
@@ -187,7 +186,6 @@ RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
         [self setKeepScreenOn:NO];
         [self stopAudioSessionNotification];
         [[NSNotificationCenter defaultCenter] removeObserver:self];
-        _forceSpeakerOn = 0;
         _audioSessionInitialized = NO;
     }
 }

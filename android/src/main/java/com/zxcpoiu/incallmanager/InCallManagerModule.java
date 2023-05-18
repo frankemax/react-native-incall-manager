@@ -161,7 +161,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     private final String useSpeakerphone = SPEAKERPHONE_AUTO;
 
     // Handles all tasks related to Bluetooth headset devices.
-    private AppRTCBluetoothManager bluetoothManager;
+    private AppRTCBluetoothManager bluetoothManager = null;
 
     private final InCallProximityManager proximityManager;
 
@@ -206,8 +206,8 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         mRequestPermissionCodePromises = new SparseArray<Promise>();
         mRequestPermissionCodeTargetPermission = new SparseArray<String>();
         mOnFocusChangeListener = new OnFocusChangeListener();
-        proximityManager = InCallProximityManager.create(reactContext, this);
         wakeLockUtils = new InCallWakeLockUtils(reactContext);
+        proximityManager = InCallProximityManager.create(reactContext, this);
 
         Log.d(TAG, "InCallManager initialized");
     }
@@ -603,8 +603,10 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
             startEvents();
 
             if (isAndroidBluetoothPermissionGranted()) {
-                bluetoothManager = AppRTCBluetoothManager.create(reactContext, this);
-                bluetoothManager.start();
+                UiThreadUtil.runOnUiThread(() -> {
+                    bluetoothManager = AppRTCBluetoothManager.create(reactContext, this);
+                    bluetoothManager.start();
+                });
             }
 
             // TODO: even if not acquired focus, we can still play sounds. but need figure out which is better.
@@ -646,7 +648,9 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 setMicrophoneMute(false);
                 forceSpeakerOn = 0;
                 if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
-                    bluetoothManager.stop();
+                    UiThreadUtil.runOnUiThread(() -> {
+                        bluetoothManager.stop();
+                    });
                 }
                 restoreOriginalAudioSetup();
                 releaseAudioFocus();
@@ -1821,105 +1825,119 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
      * Updates list of possible audio devices and make new device selection.
      */
     public void updateAudioDeviceState() {
-        Log.d(TAG, "--- updateAudioDeviceState: "
-                + "wired headset=" + hasWiredHeadset + ", "
-                + "BT state=" + (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() ? bluetoothManager.getState() : "disabled"));
-        Log.d(TAG, "Device status: "
-                + "available=" + audioDevices + ", "
-                + "selected=" + selectedAudioDevice + ", "
-                + "user selected=" + userSelectedAudioDevice);
-
-        // Check if any Bluetooth headset is connected. The internal BT state will
-        // change accordingly.
-        // TODO(henrika): perhaps wrap required state into BT manager.
-        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_UNAVAILABLE
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_DISCONNECTING)) {
-            bluetoothManager.updateDevice();
-        }
-
-        // Update the set of available audio devices.
-        Set<AudioDevice> newAudioDevices = new HashSet<>();
-
-        // always assume device has speaker phone
-        newAudioDevices.add(AudioDevice.SPEAKER_PHONE);
-
-        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
-            newAudioDevices.add(AudioDevice.BLUETOOTH);
-        }
-
-        if (hasWiredHeadset) {
-            newAudioDevices.add(AudioDevice.WIRED_HEADSET);
-        }
-
-        if (hasEarpiece()) {
-            newAudioDevices.add(AudioDevice.EARPIECE);
-        }
-
-        // --- check whether user selected audio device is available
-        if (userSelectedAudioDevice != null
-                && userSelectedAudioDevice != AudioDevice.NONE
-                && !newAudioDevices.contains(userSelectedAudioDevice)) {
-            userSelectedAudioDevice = AudioDevice.NONE;
-        }
-
-        // Store state which is set to true if the device list has changed.
-        boolean audioDeviceSetUpdated = !audioDevices.equals(newAudioDevices);
-        // Update the existing audio device set.
-        audioDevices = newAudioDevices;
-
-        AudioDevice newAudioDevice = getPreferredAudioDevice();
-
-        // --- stop bluetooth if needed
-        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (selectedAudioDevice == AudioDevice.BLUETOOTH
-                && newAudioDevice != AudioDevice.BLUETOOTH
-                && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
-                || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING))
-        ) {
-            bluetoothManager.stopScoAudio();
-            bluetoothManager.updateDevice();
-        }
-
-        // --- start bluetooth if needed
-        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (selectedAudioDevice != AudioDevice.BLUETOOTH
-                && newAudioDevice == AudioDevice.BLUETOOTH
-                && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE)) {
-            // Attempt to start Bluetooth SCO audio (takes a few second to start).
-            if (!bluetoothManager.startScoAudio()) {
-                // Remove BLUETOOTH from list of available devices since SCO failed.
-                audioDevices.remove(AudioDevice.BLUETOOTH);
-                audioDeviceSetUpdated = true;
-                if (userSelectedAudioDevice == AudioDevice.BLUETOOTH) {
-                    userSelectedAudioDevice = AudioDevice.NONE;
-                }
-                newAudioDevice = getPreferredAudioDevice();
+        UiThreadUtil.runOnUiThread(() -> {
+            if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
+                Log.d(TAG, "--- updateAudioDeviceState: "
+                        + "wired headset=" + hasWiredHeadset + ", "
+                        + "BT state=" + bluetoothManager.getState());
+            } else {
+                Log.d(TAG, "--- updateAudioDeviceState: "
+                        + "wired headset=" + hasWiredHeadset);
             }
-        }
-
-        if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists() && (newAudioDevice == AudioDevice.BLUETOOTH
-                && bluetoothManager.getState() != AppRTCBluetoothManager.State.SCO_CONNECTED)) {
-            newAudioDevice = getPreferredAudioDevice(true); // --- skip bluetooth
-        }
-
-        // Switch to new device but only if there has been any changes.
-        if (newAudioDevice != selectedAudioDevice || audioDeviceSetUpdated) {
-
-            // Do the required device switch.
-            setAudioDeviceInternal(newAudioDevice);
-            Log.d(TAG, "New device status: "
+            Log.d(TAG, "Device status: "
                     + "available=" + audioDevices + ", "
-                    + "selected=" + newAudioDevice);
-            /*
-            if (audioManagerEvents != null) {
-                // Notify a listening client that audio device has been changed.
-                audioManagerEvents.onAudioDeviceChanged(selectedAudioDevice, audioDevices);
+                    + "selected=" + selectedAudioDevice + ", "
+                    + "user selected=" + userSelectedAudioDevice);
+
+            // Check if any Bluetooth headset is connected. The internal BT state will
+            // change accordingly.
+            // TODO(henrika): perhaps wrap required state into BT manager.
+            if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
+                if (bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE
+                        || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_UNAVAILABLE
+                        || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_DISCONNECTING) {
+                    bluetoothManager.updateDevice();
+                }
             }
-            */
-            sendEvent("onAudioDeviceChanged", getAudioDeviceStatusMap());
-        }
-        Log.d(TAG, "--- updateAudioDeviceState done");
+
+            // Update the set of available audio devices.
+            Set<AudioDevice> newAudioDevices = new HashSet<>();
+
+            // always assume device has speaker phone
+            newAudioDevices.add(AudioDevice.SPEAKER_PHONE);
+
+            if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
+                if (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
+                        || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING
+                        || bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE) {
+                    newAudioDevices.add(AudioDevice.BLUETOOTH);
+                }
+            }
+
+            if (hasWiredHeadset) {
+                newAudioDevices.add(AudioDevice.WIRED_HEADSET);
+            }
+
+            if (hasEarpiece()) {
+                newAudioDevices.add(AudioDevice.EARPIECE);
+            }
+
+            // --- check whether user selected audio device is available
+            if (userSelectedAudioDevice != null
+                    && userSelectedAudioDevice != AudioDevice.NONE
+                    && !newAudioDevices.contains(userSelectedAudioDevice)) {
+                userSelectedAudioDevice = AudioDevice.NONE;
+            }
+
+            // Store state which is set to true if the device list has changed.
+            boolean audioDeviceSetUpdated = !audioDevices.equals(newAudioDevices);
+            // Update the existing audio device set.
+            audioDevices = newAudioDevices;
+
+            AudioDevice newAudioDevice = getPreferredAudioDevice();
+
+            // --- stop bluetooth if needed
+            if (isAndroidBluetoothPermissionGrantedAndBluetoothManagerExists()) {
+                if (selectedAudioDevice == AudioDevice.BLUETOOTH
+                        && newAudioDevice != AudioDevice.BLUETOOTH
+                        && (bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTED
+                        || bluetoothManager.getState() == AppRTCBluetoothManager.State.SCO_CONNECTING)
+                ) {
+                    bluetoothManager.stopScoAudio();
+                    bluetoothManager.updateDevice();
+                }
+
+
+                // --- start bluetooth if needed
+                if (selectedAudioDevice != AudioDevice.BLUETOOTH
+                        && newAudioDevice == AudioDevice.BLUETOOTH
+                        && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE) {
+                    // Attempt to start Bluetooth SCO audio (takes a few second to start).
+                    if (!bluetoothManager.startScoAudio()) {
+                        // Remove BLUETOOTH from list of available devices since SCO failed.
+                        audioDevices.remove(AudioDevice.BLUETOOTH);
+                        audioDeviceSetUpdated = true;
+                        if (userSelectedAudioDevice == AudioDevice.BLUETOOTH) {
+                            userSelectedAudioDevice = AudioDevice.NONE;
+                        }
+                        newAudioDevice = getPreferredAudioDevice();
+                    }
+                }
+
+                if (newAudioDevice == AudioDevice.BLUETOOTH
+                        && bluetoothManager.getState() != AppRTCBluetoothManager.State.SCO_CONNECTED) {
+                    newAudioDevice = getPreferredAudioDevice(true); // --- skip bluetooth
+                }
+            }
+
+            // Switch to new device but only if there has been any changes.
+            if (newAudioDevice != selectedAudioDevice || audioDeviceSetUpdated) {
+
+                // Do the required device switch.
+                setAudioDeviceInternal(newAudioDevice);
+                Log.d(TAG, "New device status: "
+                        + "available=" + audioDevices + ", "
+                        + "selected=" + newAudioDevice);
+                /*
+                if (audioManagerEvents != null) {
+                    // Notify a listening client that audio device has been changed.
+                    audioManagerEvents.onAudioDeviceChanged(selectedAudioDevice, audioDevices);
+                }
+                */
+                sendEvent("onAudioDeviceChanged", getAudioDeviceStatusMap());
+            }
+            Log.d(TAG, "--- updateAudioDeviceState done");
+        });
     }
 
     private WritableMap getAudioDeviceStatusMap() {

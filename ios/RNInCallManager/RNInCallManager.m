@@ -1297,13 +1297,22 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         });
     }
 
+//    Wrapped this call into try/catch just for safety.
+    NSString *extraData = @"";
+    @try
+    {
+        extraData = [self debugAudioSession];
+    }
+    @catch(id anException) {}
+    
     [self sendEventWithName:@"onAudioDeviceChanged"
         body:@{
             @"category": self->_audioSession.category,
             @"mode": self->_audioSession.mode,
             @"reason": reason,
             @"portName": portName,
-            @"portType": portType
+            @"portType": portType,
+            @"extra": extraData
         }];
 }
 
@@ -1343,10 +1352,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 
 - (NSString*)debugAudioSession
 {
-//   NSDictionary *currentRoute = @{
-//     @"input": _audioSession.currentRoute.inputs[0].UID,
-//     @"output": _audioSession.currentRoute.outputs[0].UID
-//   };
+   NSDictionary *currentRoute = @{
+     @"inputUID": _audioSession.currentRoute.inputs[0].UID,
+     @"inputType": _audioSession.currentRoute.inputs[0].portType,
+     @"inputName": _audioSession.currentRoute.inputs[0].portName,
+     @"outputUID": _audioSession.currentRoute.outputs[0].UID,
+     @"outputType": _audioSession.currentRoute.outputs[0].portType,
+     @"outputName": _audioSession.currentRoute.outputs[0].portName
+   };
     NSString *categoryOptions = @"";
     switch (_audioSession.categoryOptions) {
         case AVAudioSessionCategoryOptionMixWithOthers:
@@ -1366,26 +1379,26 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     @"category": _audioSession.category,
     @"categoryOptions": categoryOptions,
     @"mode": _audioSession.mode,
-//    @"inputAvailable": _audioSession.inputAvailable ? @"YES" : @"NO",
-//    @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
+    @"inputAvailable": _audioSession.inputAvailable ? @"YES" : @"NO",
+    @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
     @"recordPermission" : _recordPermission,
-//    @"availableInputs": _audioSession.availableInputs,
-//    @"currentRoute": currentRoute,
-//    @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
-//    @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],
-//    @"inputGainSettable": _audioSession.isInputGainSettable ? @"YES" : @"NO",
-//    @"inputLatency": [NSNumber numberWithFloat: _audioSession.inputLatency],
-//    @"outputLatency": [NSNumber numberWithDouble: _audioSession.outputLatency],
-//    @"sampleRate": [NSNumber numberWithDouble: _audioSession.sampleRate],
-//    @"preferredSampleRate": [NSNumber numberWithDouble: _audioSession.preferredSampleRate],
-//    @"IOBufferDuration": [NSNumber numberWithDouble: _audioSession.IOBufferDuration],
-//    @"preferredIOBufferDuration": [NSNumber numberWithDouble: _audioSession.preferredIOBufferDuration],
-//    @"inputNumberOfChannels": [NSNumber numberWithLong: _audioSession.inputNumberOfChannels],
-//    @"maximumInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumInputNumberOfChannels],
-//    @"preferredInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredInputNumberOfChannels],
-//    @"outputNumberOfChannels": [NSNumber numberWithLong: _audioSession.outputNumberOfChannels],
-//    @"maximumOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumOutputNumberOfChannels],
-//    @"preferredOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredOutputNumberOfChannels]
+    @"availableInputs": _audioSession.availableInputs,
+    @"currentRoute": currentRoute,
+    @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
+    @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],
+    @"inputGainSettable": _audioSession.isInputGainSettable ? @"YES" : @"NO",
+    @"inputLatency": [NSNumber numberWithFloat: _audioSession.inputLatency],
+    @"outputLatency": [NSNumber numberWithDouble: _audioSession.outputLatency],
+    @"sampleRate": [NSNumber numberWithDouble: _audioSession.sampleRate],
+    @"preferredSampleRate": [NSNumber numberWithDouble: _audioSession.preferredSampleRate],
+    @"IOBufferDuration": [NSNumber numberWithDouble: _audioSession.IOBufferDuration],
+    @"preferredIOBufferDuration": [NSNumber numberWithDouble: _audioSession.preferredIOBufferDuration],
+    @"inputNumberOfChannels": [NSNumber numberWithLong: _audioSession.inputNumberOfChannels],
+    @"maximumInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumInputNumberOfChannels],
+    @"preferredInputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredInputNumberOfChannels],
+    @"outputNumberOfChannels": [NSNumber numberWithLong: _audioSession.outputNumberOfChannels],
+    @"maximumOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.maximumOutputNumberOfChannels],
+    @"preferredOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredOutputNumberOfChannels]
   };
 
   return [NSString stringWithFormat:@"%@", audioSessionProperties];

@@ -1301,9 +1301,18 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     NSString *extraData = @"";
     @try
     {
-        extraData = [self debugAudioSession];
+        NSDictionary *extraDataDictionary = [self debugAudioSession];
+        NSError *error;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:extraDataDictionary
+                                                           options:NSJSONWritingPrettyPrinted // Pass 0 if you don't care about the readability of the generated string
+                                                             error:&error];
+
+        if (jsonData) {
+            extraData = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        }
     }
-    @catch(id anException) {}
+    @catch(id anException) {
+    }
     
     [self sendEventWithName:@"onAudioDeviceChanged"
         body:@{
@@ -1350,7 +1359,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 //{
 //}
 
-- (NSString*)debugAudioSession
+- (NSDictionary*)debugAudioSession
 {
    NSDictionary *currentRoute = @{
      @"inputUID": _audioSession.currentRoute.inputs[0].UID,
@@ -1382,7 +1391,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     @"inputAvailable": _audioSession.inputAvailable ? @"YES" : @"NO",
     @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
     @"recordPermission" : _recordPermission,
-    @"availableInputs": _audioSession.availableInputs,
+//    @"availableInputs": _audioSession.availableInputs,
     @"currentRoute": currentRoute,
     @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
     @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],
@@ -1401,7 +1410,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     @"preferredOutputNumberOfChannels": [NSNumber numberWithLong: _audioSession.preferredOutputNumberOfChannels]
   };
 
-  return [NSString stringWithFormat:@"%@", audioSessionProperties];
+    return audioSessionProperties;
 }
 
 @end

@@ -1384,6 +1384,18 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     }
 
   [self _checkRecordPermission];
+    
+    NSMutableArray *availableInputs = [[NSMutableArray alloc] init];
+    for (AVAudioSessionPortDescription *port in _audioSession.availableInputs) {
+        NSDictionary *portDescription = @{
+            @"portType": port.portType,
+            @"portName": port.portName,
+            @"UID": port.UID
+        };
+        
+        [availableInputs addObject:portDescription];
+    }
+    
   NSDictionary *audioSessionProperties = @{
     @"category": _audioSession.category,
     @"categoryOptions": categoryOptions,
@@ -1391,7 +1403,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     @"inputAvailable": _audioSession.inputAvailable ? @"YES" : @"NO",
     @"otherAudioPlaying": _audioSession.isOtherAudioPlaying ? @"YES" : @"NO",
     @"recordPermission" : _recordPermission,
-//    @"availableInputs": _audioSession.availableInputs,
+    @"availableInputs": availableInputs,
     @"currentRoute": currentRoute,
     @"outputVolume": [NSNumber numberWithFloat: _audioSession.outputVolume],
     @"inputGain": [NSNumber numberWithFloat: _audioSession.inputGain],

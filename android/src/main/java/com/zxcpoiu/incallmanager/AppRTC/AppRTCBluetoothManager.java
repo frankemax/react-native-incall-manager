@@ -143,7 +143,6 @@ public class AppRTCBluetoothManager {
       boolean needChange = false;
       if (bluetoothAudioDevice != null && newBtDevice == null) {
         needChange = true;
-        stopScoAudio();
       } else if (bluetoothAudioDevice == null && newBtDevice != null) {
         needChange = true;
       } else if (bluetoothAudioDevice != null && bluetoothAudioDevice.getId() != newBtDevice.getId()) {

@@ -65,13 +65,12 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
+import com.facebook.react.modules.permissions.PermissionsModule;
 import com.zxcpoiu.incallmanager.AppRTC.AppRTCBluetoothManager;
 
 public class InCallManagerModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
     private static final String REACT_NATIVE_MODULE_NAME = "InCallManager";
     private static final String TAG = REACT_NATIVE_MODULE_NAME;
-    private static SparseArray<Promise> mRequestPermissionCodePromises;
-    private static SparseArray<String> mRequestPermissionCodeTargetPermission;
     private String mPackageName = "com.zxcpoiu.incallmanager";
 
     // --- Screen Manager
@@ -203,8 +202,6 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         audioUriMap.put("bundleRingtoneUri", bundleRingtoneUri);
         audioUriMap.put("bundleRingbackUri", bundleRingbackUri);
         audioUriMap.put("bundleBusytoneUri", bundleBusytoneUri);
-        mRequestPermissionCodePromises = new SparseArray<Promise>();
-        mRequestPermissionCodeTargetPermission = new SparseArray<String>();
         mOnFocusChangeListener = new OnFocusChangeListener();
         wakeLockUtils = new InCallWakeLockUtils(reactContext);
         proximityManager = InCallProximityManager.create(reactContext, this);
@@ -1552,81 +1549,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     }
 
     private void _requestPermission(String targetPermission, Promise promise) {
-        Activity currentActivity = getCurrentActivity();
-        if (currentActivity == null) {
-            Log.d(TAG, String.format("RNInCallManager._requestPermission(): ReactContext doesn't hava any Activity attached when requesting %s", targetPermission));
-            promise.reject(new Exception("_requestPermission(): currentActivity is not attached"));
-            return;
-        }
-        int requestPermissionCode = getRandomInteger(1, 65535);
-        while (mRequestPermissionCodePromises.get(requestPermissionCode, null) != null) {
-            requestPermissionCode = getRandomInteger(1, 65535);
-        }
-        mRequestPermissionCodePromises.put(requestPermissionCode, promise);
-        mRequestPermissionCodeTargetPermission.put(requestPermissionCode, targetPermission);
-        /*
-        if (ActivityCompat.shouldShowRequestPermissionRationale(currentActivity, permission.RECORD_AUDIO)) {
-            showMessageOKCancel("You need to allow access to microphone for making call", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    ActivityCompat.requestPermissions(currentActivity, new String[] {permission.RECORD_AUDIO}, requestPermissionCode);
-                }
-            });
-            return;
-        }
-        */
-        ActivityCompat.requestPermissions(currentActivity, new String[] {targetPermission}, requestPermissionCode);
-    }
-
-    private static int getRandomInteger(int min, int max) {
-        if (min >= max) {
-            throw new IllegalArgumentException("max must be greater than min");
-        }
-        Random random = new Random();
-        return random.nextInt((max - min) + 1) + min;
-    }
-
-    protected static void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        Log.d(TAG, "RNInCallManager.onRequestPermissionsResult(): enter");
-        Promise promise = mRequestPermissionCodePromises.get(requestCode, null);
-        String targetPermission = mRequestPermissionCodeTargetPermission.get(requestCode, null);
-        mRequestPermissionCodePromises.delete(requestCode);
-        mRequestPermissionCodeTargetPermission.delete(requestCode);
-        if (promise != null && targetPermission != null) {
-
-            Map<String, Integer> permissionResultMap = new HashMap<String, Integer>();
-
-            for (int i = 0; i < permissions.length; i++) {
-                permissionResultMap.put(permissions[i], grantResults[i]);
-            }
-
-            if (!permissionResultMap.containsKey(targetPermission)) {
-                Log.wtf(TAG, String.format("RNInCallManager.onRequestPermissionsResult(): requested permission %s but did not appear", targetPermission));
-                promise.reject(String.format("%s_PERMISSION_NOT_FOUND", targetPermission), String.format("requested permission %s but did not appear", targetPermission));
-                return;
-            }
-
-            String _requestPermissionResult = "unknow";
-            if (permissionResultMap.get(targetPermission) == PackageManager.PERMISSION_GRANTED) {
-                _requestPermissionResult = "granted";
-            } else {
-                _requestPermissionResult = "denied";
-            }
-
-            if (targetPermission.equals(permission.RECORD_AUDIO)) {
-                recordPermission = _requestPermissionResult;
-            } else if (targetPermission.equals(permission.CAMERA)) {
-                cameraPermission = _requestPermissionResult;
-            } else if (targetPermission.equals((android.os.Build.VERSION.SDK_INT < 30 ?  permission.BLUETOOTH : "android.permission.BLUETOOTH_CONNECT"))) {
-                androidBluetoothPermission = _requestPermissionResult;
-
-            }
-            promise.resolve(_requestPermissionResult);
-        } else {
-            //super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-            Log.wtf(TAG, "RNInCallManager.onRequestPermissionsResult(): request code not found");
-            promise.reject("PERMISSION_REQUEST_CODE_NOT_FOUND", "request code not found");
-        }
+        getReactApplicationContext().getNativeModule(PermissionsModule.class).requestPermission(targetPermission, promise);
     }
 //  ===== Permission End =====
 

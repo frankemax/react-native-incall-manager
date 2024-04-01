@@ -58,6 +58,8 @@ declare class InCallManager {
   requestAudioFocus(): Promise<any>;
 
   abandonAudioFocus(): Promise<any>;
+  
+  static getAudioRoutes(): Promise<void>;
 }
 
 declare const inCallManager: InCallManager;

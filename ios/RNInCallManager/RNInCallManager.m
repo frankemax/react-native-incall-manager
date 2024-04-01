@@ -57,10 +57,8 @@
     BOOL _audioSessionInitialized;
     int _forceSpeakerOn;
     NSString *_media;
-}
 
-@implementation RNCallKeep
-{
+
     NSOperatingSystemVersion _version;
     BOOL _isStartCallActionEventListenerAdded;
     bool _hasListeners;
@@ -1045,7 +1043,7 @@ RCT_EXPORT_METHOD(setAudioRoute: (NSString *)uuid
             return;
         }
 
-        NSArray *ports = [RNCallKeep getAudioInputs];
+        NSArray *ports = [RNInCallManager getAudioInputs];
         for (AVAudioSessionPortDescription *port in ports) {
             if ([port.portName isEqualToString:inputName]) {
                 BOOL isSetted = [myAudioSession setPreferredInput:(AVAudioSessionPortDescription *)port error:&err];
@@ -1070,8 +1068,8 @@ RCT_EXPORT_METHOD(getAudioRoutes: (RCTPromiseResolveBlock)resolve
     NSLog(@"[RNCallKeep][getAudioRoutes]");
 #endif
     @try {
-        NSArray *inputs = [RNCallKeep getAudioInputs];
-        NSMutableArray *formatedInputs = [RNCallKeep formatAudioInputs: inputs];
+        NSArray *inputs = [RNInCallManager getAudioInputs];
+        NSMutableArray *formatedInputs = [RNInCallManager formatAudioInputs: inputs];
         resolve(formatedInputs);
     }
     @catch ( NSException *e ) {
@@ -1083,7 +1081,7 @@ RCT_EXPORT_METHOD(getAudioRoutes: (RCTPromiseResolveBlock)resolve
 + (NSMutableArray *) formatAudioInputs: (NSMutableArray *)inputs
 {
     NSMutableArray *newInputs = [NSMutableArray new];
-    NSString * selected = [RNCallKeep getSelectedAudioRoute];
+    NSString * selected = [RNInCallManager getSelectedAudioRoute];
     
     NSMutableDictionary *speakerDict = [[NSMutableDictionary alloc]init];
     [speakerDict setObject:@"Speaker" forKey:@"name"];
@@ -1098,7 +1096,7 @@ RCT_EXPORT_METHOD(getAudioRoutes: (RCTPromiseResolveBlock)resolve
         NSString *str = [NSString stringWithFormat:@"PORTS :\"%@\": UID:%@", input.portName, input.UID ];
         NSMutableDictionary *dict = [[NSMutableDictionary alloc]init];
         [dict setObject:input.portName forKey:@"name"];
-        NSString * type = [RNCallKeep getAudioInputType: input.portType];
+        NSString * type = [RNInCallManager getAudioInputType: input.portType];
         if(type)
         {
             if([selected isEqualToString:type]){
@@ -1182,38 +1180,7 @@ RCT_EXPORT_METHOD(getAudioRoutes: (RCTPromiseResolveBlock)resolve
         return @"Phone";
     }
     
-    return [RNCallKeep getAudioInputType: selectedOutput.portType];
-}
-
-- (void)requestTransaction:(CXTransaction *)transaction
-{
-#ifdef DEBUG
-    NSLog(@"[RNCallKeep][requestTransaction] transaction = %@", transaction);
-#endif
-    if (self.callKeepCallController == nil) {
-        self.callKeepCallController = [[CXCallController alloc] init];
-    }
-    [self.callKeepCallController requestTransaction:transaction completion:^(NSError * _Nullable error) {
-        if (error != nil) {
-            NSLog(@"[RNCallKeep][requestTransaction] Error requesting transaction (%@): (%@)", transaction.actions, error);
-        } else {
-            NSLog(@"[RNCallKeep][requestTransaction] Requested transaction successfully");
-
-            // CXStartCallAction
-            if ([[transaction.actions firstObject] isKindOfClass:[CXStartCallAction class]]) {
-                CXStartCallAction *startCallAction = [transaction.actions firstObject];
-                CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
-                callUpdate.remoteHandle = startCallAction.handle;
-                callUpdate.hasVideo = startCallAction.video;
-                callUpdate.localizedCallerName = startCallAction.contactIdentifier;
-                callUpdate.supportsDTMF = YES;
-                callUpdate.supportsHolding = YES;
-                callUpdate.supportsGrouping = YES;
-                callUpdate.supportsUngrouping = YES;
-                [self.callKeepProvider reportCallWithUUID:startCallAction.callUUID updated:callUpdate];
-            }
-        }
-    }];
+    return [RNInCallManager getAudioInputType: selectedOutput.portType];
 }
 
 

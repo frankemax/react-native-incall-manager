@@ -165,6 +165,8 @@ class InCallManager {
             console.log("ios doesn't support requestAudioFocus()");
         }
     }
+
+    getAudioRoutes = () => _InCallManager.getAudioRoutes();
 }
 
 export default new InCallManager();

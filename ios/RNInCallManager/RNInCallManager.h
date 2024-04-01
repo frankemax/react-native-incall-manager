@@ -8,6 +8,10 @@
 
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#import <CallKit/CallKit.h>
+#import <Intents/Intents.h>
 
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
